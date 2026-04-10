@@ -1,62 +1,220 @@
-﻿# bot_solaris
+<h1 align="center">Telegram Bot Solaris</h1>
 
-Telegram bot on `aiogram` that:
+<p align="center">
+  Telegram-бот для клуба Solaris, который помогает пользователю выбрать формат отдыха,
+  собрать понятную заявку и передать ее менеджеру через Bitrix24.
+</p>
 
-- shows a menu of services and directions;
-- gives short first-line information for each item;
-- collects name and phone when the user wants to continue;
-- finds an existing lead in Bitrix24 by phone number;
-- creates a lead if one does not exist yet;
-- appends a new request context to an existing lead if it already exists;
-- writes what the user selected into `COMMENTS` for the manager;
-- does not create product rows for the lead.
+<p align="center">
+  <strong>Python 3.13</strong> | <strong>aiogram 3</strong> | <strong>PostgreSQL</strong> | <strong>Alembic</strong> | <strong>Bitrix24</strong>
+</p>
 
-## Current flow
+## О проекте
 
-1. `/start`
-2. The user chooses `Activities`, `Rent`, or `Event`.
-3. The bot shows short information.
-4. After `Leave a request`, the bot collects name and phone.
-5. Bitrix24 receives a new or existing lead update with the request context in `COMMENTS`.
+Этот проект превращает общение в Telegram в короткую и понятную воронку:
+сначала бот показывает каталог направлений клуба и отвечает на базовые вопросы,
+затем помогает оформить заявку по шагам, а менеджер получает уже структурированный лид
+с контекстом, а не только имя и телефон.
 
-## Product direction
+Бот особенно полезен там, где у клиента много вариантов выбора:
+развлечения, аренда площадок, проживание, корпоративы и индивидуальные мероприятия.
 
-The bot is meant to reduce the managers' first-line workload:
+## Что умеет бот
 
-- answer basic questions that users would otherwise search for on the website;
-- guide the user through menu buttons before a human joins;
-- collect a readable summary of what the client was interested in;
-- pass the manager a request description and selection path, not a linked product.
+- Показывает каталог развлечений, проживания, площадок и event-направлений.
+- Отвечает на частые вопросы по картингу, маршруту до клуба и связи с поддержкой.
+- Позволяет собрать корпоративный запрос по шагам: размер группы, активности, допуслуги, банкетное меню.
+- Собирает заявку в формате диалога: описание события, имя, количество гостей, возраст, пожелания, дата и время брони, телефон.
+- Показывает предпросмотр заявки перед отправкой.
+- Ищет лид в Bitrix24 по номеру телефона и либо создает новый, либо дополняет существующий.
+- Хранит подписчиков напоминаний в PostgreSQL и автоматически отправляет повторные касания после `/start`.
 
-Target examples:
+## Основные сценарии
 
-- `Corporate event` -> group size -> selected activities -> manager follow-up.
-- `Karting` -> opening hours / admission rules / booking -> manager follow-up.
+1. Пользователь отправляет `/start`.
+2. Бот показывает главное меню и ведет человека по нужному разделу.
+3. Пользователь смотрит краткую информацию по выбранному направлению.
+4. После нажатия на кнопку заявки бот последовательно собирает нужные данные.
+5. Перед отправкой бот показывает итоговый предпросмотр.
+6. Bitrix24 получает новый лид или обновление существующего лида с полным контекстом обращения.
 
-## Setup
+## Что есть в каталоге
 
-1. Create `.env` from `.env.example`.
-2. Set:
-   - `BOT_TOKEN`
-   - `BITRIX_WEBHOOK_URL`
-   - optionally `BITRIX_ASSIGNED_BY_ID`
-3. Install dependencies:
+- Развлечения: картинг, квадроциклы, пэйнтбол, лазертаг, тир, тимбилдинг, квесты, веревочный парк, аэротруба и спортивные площадки.
+- Где пожить: гостевые коттеджи и номерной фонд.
+- Где посидеть: шатры, беседки, геокупола, банкетный зал, конференц-зал, лофт и другие площадки.
+- Корпоратив: отдельный сценарий с выбором размера группы, активностей и дополнительных услуг.
+- Мероприятие: свободная форма запроса для свадеб, юбилеев, частных и корпоративных событий.
+- О клубе: контакты поддержки и маршрут до площадки.
+
+## Интеграция с Bitrix24
+
+Бот не просто отправляет контакт, а передает менеджеру контекст обращения:
+
+- категорию интереса и выбранное направление;
+- путь пользователя по меню;
+- Telegram username и Telegram ID;
+- количество гостей и возраст участников;
+- дату и время брони;
+- дополнительные услуги;
+- комментарий клиента;
+- описание мероприятия, если запрос индивидуальный.
+
+Логика работы с лидами:
+
+- бот пытается найти существующий лид по телефону через `crm.duplicate.findbycomm`;
+- если поиск не сработал, использует запасной поиск через `crm.lead.list`;
+- если лид не найден, создает новый через `crm.lead.add`;
+- если лид уже существует, обновляет его и дописывает новый контекст в `COMMENTS`;
+- товарные позиции к лиду не прикрепляются, основной контекст передается текстом.
+
+## Напоминания
+
+После команды `/start` пользователь в приватном чате автоматически попадает в базу для напоминаний.
+Сервис раз в час проверяет очередь и по умолчанию отправляет следующее касание через 3 дня.
+Команда `/stop` отписывает пользователя от напоминаний.
+
+## Стек
+
+- `Python 3.13`
+- `aiogram 3`
+- `SQLAlchemy 2` + `asyncpg`
+- `Alembic`
+- `httpx`
+- `PostgreSQL`
+- `Loguru`
+- `uv` для установки и запуска зависимостей
+
+## Быстрый старт
+
+Все основные команды ниже выполняются из каталога `src/`, потому что именно там лежат
+`pyproject.toml`, `main.py`, `alembic.ini` и `docker-compose.yml`.
+
+1. Перейдите в рабочую директорию:
 
 ```bash
+cd src
+```
+
+2. Создайте файл `src/.env`.
+
+За основу можно взять корневой [`.env.example`](./.env.example), но его нужно дополнить
+настройками PostgreSQL. Минимальный пример:
+
+```env
+BOT_TOKEN=
+BITRIX_WEBHOOK_URL=
+BITRIX_SOURCE_ID=WEB
+BITRIX_LEAD_STATUS_ID=NEW
+BITRIX_ASSIGNED_BY_ID=
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=solaris_bot
+```
+
+3. Поднимите PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+4. Установите зависимости.
+
+Вариант через `uv`:
+
+```bash
+uv sync
+```
+
+Вариант через стандартный `venv`:
+
+```bash
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -e .
 ```
 
-4. Run:
+5. Примените миграции:
+
+```bash
+uv run alembic upgrade head
+```
+
+или, если используете активированное виртуальное окружение:
+
+```bash
+alembic upgrade head
+```
+
+6. Запустите бота:
+
+```bash
+uv run python main.py
+```
+
+или:
 
 ```bash
 python main.py
 ```
 
-## Bitrix24 logic
+## Переменные окружения
 
-1. `crm.duplicate.findbycomm` searches for a lead by phone.
-2. If nothing is found, `crm.lead.list` is used as a fallback.
-3. If there is no lead, the bot creates one via `crm.lead.add`.
-4. If a lead exists, the bot appends the new request context via `crm.lead.update`.
-5. Category, interest, selection path, and extra user notes are stored in `COMMENTS`.
-6. No product rows are attached to the lead.
+| Переменная | Обязательна | Назначение |
+| --- | --- | --- |
+| `BOT_TOKEN` | Да | Токен Telegram-бота |
+| `BITRIX_WEBHOOK_URL` | Да | URL входящего webhook Bitrix24 |
+| `BITRIX_SOURCE_ID` | Нет | Источник лида, по умолчанию `WEB` |
+| `BITRIX_LEAD_STATUS_ID` | Нет | Статус создаваемого или обновляемого лида, по умолчанию `NEW` |
+| `BITRIX_ASSIGNED_BY_ID` | Нет | ID ответственного в Bitrix24 |
+| `POSTGRES_USER` | Да | Пользователь PostgreSQL |
+| `POSTGRES_PASSWORD` | Да | Пароль PostgreSQL |
+| `POSTGRES_HOST` | Да | Хост PostgreSQL |
+| `POSTGRES_PORT` | Да | Порт PostgreSQL |
+| `POSTGRES_DB` | Да | Имя базы данных |
+
+## Структура проекта
+
+```text
+.
+|-- .env.example
+|-- README.md
+`-- src
+    |-- alembic
+    |   `-- versions
+    |-- app
+    |   |-- bitrix
+    |   |-- catalog
+    |   |-- core
+    |   |-- services
+    |   |-- telegram
+    |   |-- types
+    |   `-- users
+    |-- alembic.ini
+    |-- docker-compose.yml
+    |-- main.py
+    |-- pyproject.toml
+    `-- uv.lock
+```
+
+Ключевые модули:
+
+- `src/app/telegram` - роутеры, состояния FSM, клавиатуры и пользовательские сценарии.
+- `src/app/catalog` - каталог услуг, описания, FAQ и данные для меню.
+- `src/app/bitrix` - клиент Bitrix24 и логика работы с лидами.
+- `src/app/services` - сборка заявки, предпросмотр, напоминания и вспомогательная бизнес-логика.
+- `src/app/users` - модель пользователя и репозиторий для напоминаний.
+- `src/alembic` - миграции базы данных.
+
+## Для чего проект полезен бизнесу
+
+- Снимает с менеджеров часть первичных однотипных вопросов.
+- Помогает пользователю быстрее выбрать подходящий формат отдыха или мероприятия.
+- Передает в Bitrix24 уже квалифицированный лид с историей выбора.
+- Позволяет повторно касаться пользователя через напоминания, если он уже запускал бота.
+
+## Лицензия
+
+Проект распространяется под лицензией [MIT](./LICENSE).
